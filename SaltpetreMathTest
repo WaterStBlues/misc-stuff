@@ -1,0 +1,36 @@
+#tests some weird math shennanigans from /tg/station's ss13 code
+
+#saltpetre original code (.dm):
+#myseed.adjust_production(-round(salt/100)-prob(salt%100))
+#myseed.adjust_potency(round(salt*0.5))
+#in short just tests every 5u interval a bunch of times and prints the avg effect on production and potency stats, but what I found gets really weird around the 100u mark
+
+import random
+
+def splash(salt): #calculates one addition of a given amount of saltpetre
+
+    rng = random.randrange(1,101) #this block is just my recreation the prob() function
+    if rng < salt%100:
+        rng = 1
+    else:
+        rng = 0
+        
+    prod_adj = (-round(salt/100)-rng)
+    pot_adj = round(salt*0.5)
+    
+    return (prod_adj, pot_adj)
+
+
+for i in range(25,101,5): #i = the units tested, from 25 to 100 in steps of 5
+    avgProdList = [] #fills up with the test values for production changes, and potency changes go below
+    avgPotList = []
+    for j in range(50): #run each one 50 times, idunno
+        a = splash(i) #pass to function above
+        avgProdList.append(a[0])
+        avgPotList.append(a[1])
+    if len(avgProdList) > 1 and len(avgPotList) > 1: #conditional to avoid div by 0, calculates the average of each, prints em
+        avgProd = sum(avgProdList)/len(avgProdList)
+        avgPot = sum(avgPotList)/len(avgPotList)
+        print(i,"u: prod change = ",avgProd," | pot change = ",avgPot)
+    else:
+        pass
