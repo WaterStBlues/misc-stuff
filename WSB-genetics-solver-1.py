@@ -3,7 +3,7 @@
 
 #step 1: clear ss13 logs, then run around scanning nerds with your handy dandy genetics sequence scanner
 #step 2: when you're done, copy and paste all of the logs you've amassed into a .txt file. save it.
-#step 3: put the path to your file in the path var below. Paste the location in between the quotation marks below. Don't fuck it up.
+#step 3: put the path to your file in the path var below. Paste the location in between the quotation marks below. Don't mess it up.
 #step 4: run it and take most of the guesswork out of genetics
 
 
