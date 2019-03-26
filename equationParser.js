@@ -44,8 +44,7 @@ function calculate(displayList){
     return joinList[0]; //only one remains
 }
 
-function bedmas_iterate(operator1, operator2, calc_list){ // input operator is "-" or "*" etc, calc_list is just the list. Use this function only in the calculate function
-    var currentOperator;
+function bedmas_iterate(operator1, operator2, calc_list){ // two input operators are handled simultaneously, inputted as strings. calc_list is just the list. Use this function only in the calculate function
     for (var i=0; i<calc_list.length; i++){
         if ((calc_list[i] == operator1) || (calc_list[i] == operator2)){
             currentOperator = calc_list[i];
