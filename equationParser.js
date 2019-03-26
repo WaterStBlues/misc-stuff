@@ -1,10 +1,13 @@
-function calculate(displayList){
+function calculate(displayList){ 
+    /*takes a list of calculator button entries as single-character items in a list, the first part of this function determines what constitutes a number, the second part calls the bedmas_iterate function to solve them w/ order of operations */
 	var currentList = []; // the current list items that will become a number later, cleared when complete
 	var joinList = []; // the list of joined numbers, separated by the operators that they'll later be executed with
 	var operatorList = ["*","/","+","-"];
 	
 	for (var i=0; i<displayList.length; i++){ 
 		if (operatorList.includes(displayList[i])){ // if the item is an operator
+            
+            /* the block below handles minus (-) symbols, which can behave differently than the rest */
 			if ((displayList[i] == '-') && (currentList.length == 0)){
 				currentList.push(displayList[i]); // check if the minus symbol is part of a number or acting as an operator, add it to the currentList if it's part of it
 			}
@@ -34,19 +37,19 @@ function calculate(displayList){
     console.log(joinList.join(','));
     
     
-    for (var i=0; i<operatorList.length; i++){
-        joinList = bedmas_iterate(operatorList[i], joinList); //run through each operator in bedmas_iterate, modifying joinList each time
-        console.log(joinList.join(','))
-    }
+    joinList = bedmas_iterate('*', '/', joinList); // first, solve for multiplication and division from left to right
+    joinList = bedmas_iterate('+', '-', joinList); // then the same for addition and subtraction
     
     
     return joinList[0]; //only one remains
 }
 
-function bedmas_iterate(operator, calc_list){ // input operator is "-" or "*" etc, calc_list is just the list
+function bedmas_iterate(operator1, operator2, calc_list){ // input operator is "-" or "*" etc, calc_list is just the list. Use this function only in the calculate function
+    var currentOperator;
     for (var i=0; i<calc_list.length; i++){
-        if (calc_list[i] == operator){
-            switch(operator){
+        if ((calc_list[i] == operator1) || (calc_list[i] == operator2)){
+            currentOperator = calc_list[i];
+            switch(currentOperator){ // this switch determines what must be done
                 case "+":
                     newValue = calc_list[i-1] + calc_list[i+1];
                     break;
@@ -60,14 +63,16 @@ function bedmas_iterate(operator, calc_list){ // input operator is "-" or "*" et
                     newValue = calc_list[i-1] / calc_list[i+1];
                     break;    
             }
-            calc_list[i-1] = newValue;
-            calc_list.splice(i, 2);
-            i = 0; // go back to beginning
+            calc_list[i-1] = newValue; //set the value of the first item in the specific problem to the new value,
+            calc_list.splice(i, 2); // then remove the operator & value that follow in the following 2 list items
+            i = 0; // aaand go back to the beginning and do it again. This loop will end once there are no operators, which will mean that only one value is left.
         }
     }
+    console.log(calc_list.join(','));
     return calc_list;
 }
-    
+
+//var dList = ['2','/','2','*','4']
 //var dList = ['-','1','+','2','/','3','-','1','*','4'];
 //var x = calculate(dList);
 //alert(x);
