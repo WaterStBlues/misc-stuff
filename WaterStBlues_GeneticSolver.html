@@ -112,28 +112,6 @@
         }
         
         
-        function createNewRow(tableID, inputList){
-                var newRow = document.createElement("tr");
-                
-                for (var cellCount = 0; cellCount < inputList.length; cellCount++){
-                    
-                    var newCell = document.createElement("td");
-                    if ((cellCount!=0)&&(cellCount%4==0)){
-                        var blankCell = document.createElement("td");
-                        blankCell.innerHTML = "-";
-                        newRow.appendChild(blankCell);
-                    }
-                    newCell.innerHTML = inputList[cellCount];
-                    newRow.appendChild(newCell);
-                }
-                return newRow;
-            }
-
-            function insert_Row(rowID){
-                var table = document.getElementById("sampleTable");
-                tableID.appendChild(createNewRow(rowID));
-            }
-        
         function createNewRow(inputList){
                 
             let newRow = document.createElement("tr");
