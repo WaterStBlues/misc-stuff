@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>WaterStBlues' Genetic Parser</title>
+        <!--<link rel=stylesheet type="text/css" href="exStyle.css" />-->
+
+
+        <style> 
+                /* BAD CSS PRACTICE, OH NOOO */
+                .inputBox{
+                    height: 180px;
+                    width: 95%;
+                    margin-left:2.5%;
+                    margin-right:2.5%;
+                }
+                div.insert{
+                    white-space:pre;
+                    tab-size:20px;
+                    overflow: scroll;
+                    height:500px;
+                    font-size-adjust: 15%;
+                }
+
+
+                .mutationObject:hover{
+                    background-color:azure;
+                }
+
+                #sampleLogs{
+                    width:20%;
+                    height:50px;
+                    display:none;
+                }
+
+                img{
+                    width:5%;
+                    height:5%;
+                }
+        </style>
+    </head>
+
+    <body>
+        
+        <script>
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            /* ******************************************************* */
+            //          HTML DOM FUNCTIONS
+            //  used to make those pretty tables with the rest of
+            //  this program.
+            /* ******************************************************* */
+            
+            function createNewRow(inputList){
+                //used below
+                let newRow = document.createElement("tr");
+
+                for (var cellCount = 0; cellCount < inputList.length; cellCount++){
+
+                    var newCell = document.createElement("td");
+                    if ((cellCount!=0)&&(cellCount%4==0)){
+                        var blankCell = document.createElement("td");
+                        blankCell.innerHTML = "-";
+                        newRow.appendChild(blankCell);
+                    }
+                    newCell.innerHTML = inputList[cellCount];
+                    newRow.appendChild(newCell);
+                }
+                return newRow;
+            }
+        
+        
+            function createMutationTable(mutationID){
+                    let newTable = document.createElement("table");
+
+                    newTable.id = ("Mutation"+mutationID[0].toString());
+                    newTable.className = "mutationTable";
+                    newTable.appendChild(createNewRow(mutationID[1]));
+                    newTable.appendChild(createNewRow(mutationID[2]));
+
+                    return newTable;
+            }
+            
+            function clearInsertDiv(){ //clear the active area between seperate uses
+                let divNode = document.getElementById("insert");
+                while(divNode.firstChild){ //this logic is kinda hilarious
+                    divNode.removeChild(divNode.firstChild);
+                }
+            }
+            
+            
+            
+            
+            
+            
+            
+            /* ******************************************************* */
+            //              INDIVIDUAL COMPARISIONS                    
+            //
+            //  These compare individual base pairs in a DNA sequence.
+            //                  C-G, and T-A
+            //  in-game, DNA is organized into two rows of 16 pairs
+            //  each. X (unknown) values must be solved. A pair of X's 
+            //  makes the sequence harder to solve, as 8 possible
+            //  combinations exist. Each additional X-pair increases
+            //  the theoretical difficulty exponentially (8, 64, etc)
+            /* ******************************************************* */
+            
+            function compareSame(char1, char2){
+                // compares a base on one sequence to the same position on another sequence
+                if (char1 == 'X'){
+                    switch(char2){
+                        case "A":
+                            return "A";
+                            break;
+                        case "T":
+                            return "T";
+                            break;
+                        case "C":
+                            return "C";
+                            break;
+                        case "G":
+                            return "G";
+                            break;
+                        default:
+                            return "X";
+                            break;
+                    }
+                }
+                else{return char1;}
+            }
+            
+            function compareSameList (list1, list2){
+                let newList = [];
+                for (var i=0; i<list1.length; i++){
+                    newList.push(compareSame(list1[i], list2[i]));
+                }
+                return newList;
+
+            }
+            
+            function compareOpposite(char1, char2){
+                // compares two bases on different rows against eachother, whether
+                // from the same sequence or another.
+                if (char1 == 'X'){
+                    switch(char2){
+                        case "A":
+                            return "T";
+                            break;
+                        case "T":
+                            return "A";
+                            break;
+                        case "C":
+                            return "G";
+                            break;
+                        case "G":
+                            return "C";
+                            break;
+                        default:
+                            return "X";
+                            break;
+                    }
+                }
+                else{return char1;}
+            }
+            
+            function compareOppositeList(list1, list2){
+                let newList = [];
+                for (var i=0; i<list1.length; i++){
+                    newList.push(compareOpposite(list1[i], list2[i]));
+                }
+                return newList;
+            }
+            
+            
+            
+            
+            
+            
+            
+            
+            /* ******************************************************* */
+            //              SEQUENCES
+            // Each player or humanoid entity starts with 8 sequences.
+            // They start inactive (have unsolved X's) in the
+            // majority of cases.
+            // This class will save every sequence passed into the logs
+            // with its own individual sequenceID for later use.
+            /* ******************************************************* */
+            
+            function getDifficulty(topList, bottomList){ //could probably put this in the Sequence class
+                let difficultyCounter = 0;
+                for (let i=0; i<topList.length; i++){
+                    if (topList[i] == 'X'){
+                        difficultyCounter++;
+                    }
+                }
+                for (let i=0; i<bottomList.length; i++){
+                    if (bottomList[i] == 'X'){
+                        if (topList[i] == 'X'){ //an X pair is worth 3. The original coders were bad at this
+                            difficultyCounter++;
+                        }
+                        difficultyCounter++;
+                    }
+                }
+                return difficultyCounter;
+            }
+            
+            SequenceArray = []
+            class Sequence{
+                constructor(mutationID, initialTopRow, initialBottomRow){
+                    
+                    this.mutationID = mutationID;
+                    this.initialTopRow = initialTopRow;
+                    this.initialBottomRow = initialBottomRow;
+                    
+                    this.difficulty = getDifficulty(initialTopRow, initialBottomRow);
+                    
+                    this.topRow = compareOppositeList(initialTopRow, initialBottomRow);
+                    this.bottomRow = compareOppositeList(initialBottomRow, initialTopRow);
+                    
+                    SequenceArray.push(this);
+                }
+            }
+            
+            
+            
+            
+            
+            
+            /* ******************************************************* */
+            //              MUTATIONS
+            // as of the time of coding, there are 45 possible mutations.
+            // this program will adapt to any additions, though.
+            // this class will take each Sequence and create a final
+            // version to be displayed.
+            /* ******************************************************* */
+            
+            class Mutation{
+                constructor(mutationID, topRow, bottomRow){
+                    console.log("mutation " + this + " created.");
+                    this.mutationID = mutationID;
+                    this.topRow = topRow;
+                    this.bottomRow = bottomRow;
+                    this.difficultyList = [] // array of difficulty values
+                }
+                
+                addSequence(newSequence){
+                    topRow = compareSameList(topRow, newSequence.topRow);
+                    bottomRow = compareSameList(bottomRow, newSequence.bottomRow);
+                }
+            }
+            
+            
+            /* ******************************************************* */
+            //          MAIN SCRIPT
+            /* ******************************************************* */
+            
+            function startFunction(){
+                clearInsertDiv();
+                var SequenceNumber = 1;
+                SequenceArray = []; //will contain all instances of Sequence
+                var lines = document.getElementById('inputBox').value.split('\n');
+                
+                var parsedLineList = []
+
+                for (var i=0; i<lines.length; i++){
+                    var mutNumber, currentMutation, blockList;
+
+
+                    if (lines[i].startsWith("- Mutation")){ //MAINTAIN
+                        currentMutation = lines[i];
+                        let splitStr = currentMutation.split(" > ");
+                        mutNumber = (splitStr[0].split("- Mutation "))[1];
+
+                        let blockList = splitStr[1].trim().split("-");
+                        blockList = blockList.join("");
+
+                        let charList = blockList.split('');
+                        let topList=[];
+                        let bottomList=[];
+                        for (let j=0; j<charList.length; j++){
+                            if ((j==0)||(j%2==0)){
+                                topList.push(charList[j]);
+                            } else {
+                                bottomList.push(charList[j]);
+                            }
+                        }
+                        let parsedLine = [mutNumber, topList, bottomList];
+                        parsedLineList.push(parsedLine);
+                        
+                    }
+
+                    else if ((lines[i].startsWith("- "))&&(lines[i].includes("(Mutation "))){ //MAINTAIN WITH ABOVE XXXXXXX
+                        let splitStr2 = lines[i].split(" > ");
+                        mutNumber = splitStr2[0].split("Mutation ")[1].split(")")[0];
+
+                        let blockList = splitStr2[1].trim().split("-");
+                        blockList = blockList.join("");
+
+                        let charList = blockList.split('');
+                        let topList=[];
+                        let bottomList=[];
+                        for (let j=0; j<charList.length; j++){
+                            if ((j==0)||(j%2==0)){
+                                topList.push(charList[j]);
+                            } else {
+                                bottomList.push(charList[j]);
+                            }
+                        }
+                        
+                        let parsedLine = [mutNumber, topList, bottomList];
+                        parsedLineList.push(parsedLine);
+                    }
+
+                }
+                
+                for (var i=0; i<parsedLineList.length; i++){
+                    this["sequence"+i] = new Sequence(parsedLineList[i][0], parsedLineList[i][1], parsedLineList[i][2]);
+                    console.log(this["sequence"+i])
+                }
+                
+    //            this.["seq" + SequenceNumber] = Sequence(mutID, topList, bottomList);
+      //                  SequenceNumber++;
+            }
+            
+            //TODO:     dynamic variable name changer for Sequence and Mutation classes
+            //          plug Sequence into initial script
+            //          modify DOM functions to match new classes
+        </script>
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        <a href='https://github.com/WaterStBlues'>
+            <img src='https://tgstation13.org/phpBB/download/file.php?avatar=5056_1547239968.jpg'>
+        </a>
+    
+        <h1>WaterStBlues' Genetic Code Parser</h1>
+
+        <p>
+        <a href="http://www.hitwebcounter.com" target="_blank">
+        <img src="http://hitwebcounter.com/counter/counter.php?page=7063558&style=0024&nbdigits=5&type=page&initCount=1" title="url and counting visits" Alt="url and counting visits"   border="0" ></a>   powergaming turbonerds have visited </p>
+
+
+        <p>Instructions:</p>
+        <p>
+            <ul>
+                <li>Be geneticist on /tg/code</li>
+                <li>Run around with your genetic scanner, scanning players, monkeys, and braindeads.</li>
+                <li>After scanning 10-20+ (the more the better) of the above, paste the logs in and click the button!</li>
+            </ul>
+        </p>
+
+
+        <form id=textInput>
+            <textarea placeholder="Paste round logs here, make SURE that you're not pasting logs from previous rounds with it" id=inputBox class=inputBox form_id=textInput  autofocus=true required=true></textarea>
+        </form>
+        <button onclick='startFunction()'>let's go</button>
+        <button onclick='showSampleLogs()'>Click here to show/hide example logs</button>
+
+        <hr />
+    
+    
+        <div id="insert">
+        </div>
+
+
+
+
+        <textarea id='sampleLogs'>
+Click and press ctrl+A to copy all of these sample logs
+
+Reeese Jordans has analyzed Reeese Jordans's genetic sequence. 
+
+Reeese Jordans's potential mutations. 
+
+- Mutation 16 > ATCGAXGC-CXGCATAX-XTATGXXT-XXGCGCAT 
+
+- Mutation 23 > XCXXXGAT-CGTAGCAT-GCATCGGC-TXTATAAX 
+
+- Mutation 11 > GXAXXXAT-TAGCCGTA-TAATTAXC-CXXAXGXA 
+
+- Mutation 43 > ATGCTACG-ATTAXGAT-GCGCXAXA-AXTAXACX 
+
+- Mutation 28 > CXCGTAGC-TXGXGXGC-GCXXATXX-TAGCCXXC 
+
+- Mutation 25 > GXGCCGCG-TAGCAXAT-TAXXATTA-TACXXXXX 
+
+- Mutation 35 > ATTAGCTA-CGTACGAT-TAXCTAGX-AXTXXCTA 
+
+- Mutation 42 > CXXXGXGX-TAXXCXGC-AXATXXTA-XXXTATCG 
+
+[Common] The Automated Announcement System  coldly states, " Logan Lucy has signed up as Assistant " 
+
+[Common] The Automated Announcement System  coldly states, " Amaryllis Keener has signed up as Assistant " 
+
+[Common] The Automated Announcement System  coldly states, " Andres Wardle has signed up as Assistant " 
+
+[Common] The Automated Announcement System  coldly states, " Chu Xi Peng has signed up as Assistant " 
+
+OOC:  Mklzer0:  wrong it's eurobeat 
+
+Reeese Jordans  says, " Hey " 
+
+Reeese Jordans  says, " Let me scan you " 
+
+[Common] The Automated Announcement System  coldly states, " Jim Anderson has signed up as Assistant " 
+
+OOC:  Brent0n_Tarrant:  ^Stay out of the mosque 
+
+[Common] The Automated Announcement System  coldly states, " Alan Richter has signed up as Assistant " 
+
+Reeese Jordans has analyzed Archie Werry's genetic sequence. 
+
+Archie Werry's potential mutations. 
+
+- Mutation 20 > TACXTXXX-TATACXAT-ATGXXTCG-TAXCXGGC 
+
+- Mutation 37 > ATAXCGCG-TAXGGXCX-CGCGGCGC-XXTXTAXA 
+
+- Mutation 33 > XGCGCXXC-XAXAXTAX-ATXCXTXG-GCXXXGGC 
+
+- Mutation 24 > XAXACGXX-TXXXXXAT-CXXCTAAX-XTTATXCG 
+
+- Mutation 36 > TXXXGCXX-AXATGCTX-CGXAGCCG-GCCGXXAT 
+
+- Mutation 44 > ATATXXCG-XXAXGCTA-ATAXCXXG-CXXXCXXX 
+
+- Mutation 5 > CGXGAXTA-AXXCGCXC-TAGCCGTA-ATCGCGXG 
+
+- Mutation 43 > XTXCTACX-ATXXCGAT-GCGCTATA-XTXATXCG 
+
+[Common] The Automated Announcement System  coldly states, " Stanko Goodburger has signed up as Assistant " 
+
+[Common] The Automated Announcement System  coldly states, " Bruce Stocker has signed up as Assistant " 
+
+[Common] The Automated Announcement System  coldly states, " West Mann has signed up as Assistant " 
+
+[Common] The Automated Announcement System  coldly states, " Nichard Rixon has signed up as Assistant " 
+
+Reeese Jordans has analyzed Sans Sans's genetic sequence. 
+
+Sans Sans's potential mutations. 
+
+- Mutation 41 > XAGCCXCG-XCXCXXXX-TACXXATA-TACXTAXA 
+
+- Mutation 6 > AXXXATGC-ATCGXCCG-CGCXATXG-XAGCXTCG 
+
+- Mutation 22 > GCXACGXX-XTGCATCX-ATXAAXAT-GCGCXXGX 
+
+- Mutation 43 > ATXCTAXX-ATTAXGAT-GXGXTATA-ATTATACG 
+
+- Mutation 11 > XCAXGXAT-TXGCCGTA-TXXTTXGC-CXXAXXTA 
+
+- Mutation 32 > XTCGGCXA-ATXGGXXX-GCGCCGGC-TATATAAX 
+
+- Mutation 40 > XXXGTXXT-XGATXXXT-GCXGCXAX-CGXCGCAX 
+
+- Mutation 45 > XCXXTATA-XXXTCGAT-AXGCGCTA-XXXTAXAT 
+
+OOC:  Mklzer0:  eurobeat isn't LE ANIME SONG XD 
+
+Reeese Jordans has analyzed Jamie Aulter's genetic sequence. 
+
+Jamie Aulter's potential mutations. 
+
+- Mutation 8 > CXGCATXT-XGCXXTAT-GCXTXXTA-ATATAXXA 
+
+- Mutation 26 > GXGXXTXX-TXCXAXTA-ATGXXGXA-XXXXTXTA 
+
+- Mutation 43 > XTGXTACG-ATTACGXX-GCGCTATA-XTXATACG 
+
+- Mutation 37 > ATAXCXXG-TXCGGCXG-CGCGXCGC-XATAXATX 
+
+- Mutation 11 > GCXTXCXX-TAXCXGTA-XAAXTAGC-CXTACGTA 
+
+- Mutation 25 > GXGCCXCX-TAGCXTXT-TAXCAXTA-TXCGXCAT 
+
+- Mutation 18 > XCATGCAX-CGXXXXXG-AXXATXXX-GCXAXXAT 
+
+- Mutation 35 > ATTAXCXA-CGTXCGAX-TAXXTXGX-ATTAXCXA 
+
+OOC:  Clownlover70:  wrong, you are FACTUALLY GAYYYY 
+
+[Common] The Automated Announcement System  coldly states, " Micheal Mikey Mcclyndon has signed up as Assistant " 
+
+Sans Sans  asks, " Who wants chemist id? " 
+
+OOC:  Mklzer0:  fucking niggers 
+
+[Common] The Automated Announcement System  coldly states, " Clayton Mcfall has signed up as Assistant " 
+
+OOC:  Mklzer0:  eurobeat is italian 
+
+OOC:  Unit2E:  Well, you guys liked Sabaton when I played it, so here you go 
+
+[Common] The Automated Announcement System  coldly states, " Aborted Fetus has signed up as Assistant " 
+
+[Common] The Automated Announcement System  coldly states, " Ba Bu Laun has signed up as Assistant " 
+
+[Common] The Automated Announcement System  coldly states, " Kevin Loncher has signed up as Assistant " 
+
+Reeese Jordans has analyzed Flop O'Honker's genetic sequence. 
+
+Flop O'Honker's potential mutations. 
+
+- Mutation 20 > XXCGTAXA-TATACGAT-XTGCATXG-TXGXXGGC 
+
+- Mutation 37 > ATATXXXG-TACXGCCG-CGCXGXGC-TATXXATA 
+
+- Mutation 7 > AXGCXXTA-GXXTCGAT-ATXAATXX-TACGAXTA 
+
+- Mutation 3 > XXTATXXC-XCCGXAXG-CGCXXTXX-ATAXATGC 
+
+- Mutation 33 > CGXGXGGC-TATAXXXT-AXXCXTXX-GCGCXXGC 
+
+- Mutation 8 > XGXXATAT-XXCXATAT-GXXTGXXA-XTAXAXTA 
+
+- Mutation 43 > AXGCTACX-ATTXCXAT-GCXCTXTA-ATXXTACG 
+
+- Mutation 6 > XXXXATGC-XTCXGXCX-CGCXATCG-TAXCAXXG 
+
+[Common] The Automated Announcement System  coldly states, " Manley Roby has signed up as Assistant " 
+
+Reeese Jordans has analyzed HONHONHONhon Hon's genetic sequence. 
+
+HONHONHONhon Hon's potential mutations. 
+
+- Mutation 25 > XXXCCXCG-TAXCXTAT-TAGXATTA-TACGGCAT 
+
+- Mutation 26 > GXXCATAX-XACXXXXA-ATXXCXTA-ATXTTAXX 
+
+- Mutation 43 > AXGCTACX-ATXACGAX-GCGXTAXA-ATTAXACG 
+
+- Mutation 8 > XGXXATXT-CXCXATAX-XCAXGXTX-AXATATXA 
+
+- Mutation 20 > XACXTATA-TATACXAT-AXGCAXCG-TAGXCGGC 
+
+- Mutation 32 > ATXXGXTA-ATCGGCGC-GCGCCXGC-TXTATAXT 
+
+- Mutation 6 > AXXGATGC-ATXGGCXG-CGCGXTCX-TXGCXTCG 
+
+- Mutation 17 > ATATTATA-XXGCATTA-XTXXATXA-XATXTACG 
+
+[Common] Shatman Shatleon  says, " S Good Morning Officers. Remember to Lock your lockers after use. If station at a certain Department, patrol there. Officers starting in sec station patrol around the whole station. " 
+
+[Science] Avery Leach  says, " Hello Science I am your asigned sec officer report things to me. " 
+
+OOC:  Arathian:  oh hello 
+
+OOC:  Mklzer0:  based 
+
+OOC:  KiwiNull:  baste 
+
+Reeese Jordans has analyzed Del's genetic sequence. 
+
+Del's potential mutations. 
+
+- Mutation 4 > XGXXXXTA-XTTXXGAT-TXTXAXXG-TAXXGXGC 
+
+- Mutation 7 > ATGCXTXX-GCATCGXT-XXXAXTXT-TACGATTA 
+
+- Mutation 44 > AXAXCGXX-XGATGCTA-XTATCXCX-CGCXXGXX 
+
+- Mutation 29 > TXGCTAAX-ATGCXGXG-CXATXCAT-AXXXCGXX 
+
+- Mutation 24 > TXTXXGCG-TAGCXCXX-XXXCXXAX-XTTATXCG 
+
+- Mutation 43 > XTXCTACG-ATXACGAT-GCXCTAXX-AXTATACX 
+
+- Mutation 23 > GXXCCGAT-CGTXXCAT-GCATCXXC-TXXATAAX 
+
+- Mutation 11 > XXATGCAX-TAXXCGTA-XAATTAXC-CGTXXGTA 
+
+Reeese Jordans has analyzed Eveleen Mccune's genetic sequence. 
+
+Eveleen Mccune's potential mutations. 
+
+- Mutation 4 > XGXATAXA-AXXAXGXT-XXTAXXXG-TAATGXGC 
+
+- Mutation 40 > XXCGTAAX-CXAXXCAX-XCCGCGXT-XXXCGCXT 
+
+- Mutation 41 > TAGXCXXG-GCGCGXAX-TACXTAXX-TACGTAXA 
+
+- Mutation 5 > CGXGATTA-XTGXGCGC-TAGCCGTX-AXCGCGCG 
+
+- Mutation 45 > GXCGTATX-XGATCXAT-ATXXGCTA-TXATATAX 
+
+- Mutation 32 > XTCGXCTA-ATCGXCXC-GCGCCXXC-XAXXTAXT 
+
+- Mutation 23 > XCGCCGAT-CXXXGCAX-GXXXCGGC-TATATXXT 
+
+- Mutation 43 > XTXCTXCG-AXXXCGAT-GCXCTXXA-ATTATACG 
+
+[Science] Bill Thompson  says, " Hey can anyone in science teach me how to build chemical despensers " 
+
+OOC:  Maran123:  Fuck yeah 
+
+Reeese Jordans  says, " Can you let me out of maint " 
+
+[Science] Bill Thompson  says, " Hello avery, im the chief research director " 
+
+Captain's Charter 
+Gael C. Richards has designated your station as Anime Hellhole 
+
+
+[Science] Bill Thompson  says, " Ill let you know if anything retarded is goingo n " 
+
+Eveleen Mccune  says, " Sup dude " 
+
+[Science] Avery Leach  says, " Roger " 
+
+Reeese Jordans  says, " Let me out of maint " 
+
+Reeese Jordans  says, " Please " 
+
+OOC:  FMK:  how to do a cartwheel? 
+
+OOC:  YivoDev:  Ugh, my game just went all black. 
+
+OOC:  Unit2E:  Type *spin FMK 
+
+Eveleen Mccune  says, " One sec " 
+
+Reeese Jordans  says, " This way " 
+
+Reeese Jordans has grabbed Eveleen Mccune passively! 
+
+OOC:  CheekiCheeki:  its *flip 
+
+[Science] Bill Thompson  says, " Who is working in xeno biology today? ill need some slime cores later " 
+
+
+Central Command Update 
+
+
+Security Report 
+
+Thanks to the tireless efforts of our security and intelligence divisions, there are currently no credible threats to Anime Hellhole. All station construction projects have been authorized. Have a secure shift! 
+
+
+Reeese Jordans has grabbed Eveleen Mccune passively! 
+
+Reeese Jordans has thrown Eveleen Mccune. 
+
+[Science] Bill Thompson  says, " Be sure to save some grey slimes cores, at least 10 for later, we are gonna make a reproductive or industrial slime " 
+
+Reeese Jordans has analyzed Reed Elderson's genetic sequence. 
+
+Reed Elderson's potential mutations. 
+
+- Mutation 16 > ATCXXTGC-CGGXAXAT-ATAXGCXT-XAGCXXAT 
+
+- Mutation 45 > XCXXTXXA-CGATXGAT-ATGCGCXX-TAXTATAT 
+
+- Mutation 42 > CGXAXCXC-TAGXCGXC-ATAXXXXA-GXAXAXCG 
+
+- Mutation 43 > XTXCTXXG-AXTACGAT-XCGCXATA-ATTAXACX 
+
+- Mutation 5 > CXCGATXA-ATXCGCGC-XXGCCXTA-AXCGCXXG 
+
+- Mutation 23 > GCXXCGAT-XGTAXXAT-GXATCGGC-TATXTAXX 
+
+- Mutation 7 > ATXCAXTA-GCATXGAT-XTTAXTAT-XACGATTA 
+
+- Mutation 35 > ATTXGXTA-XXTXCGAT-XAGCTAGC-ATXAGCXA 
+
+Reeese Jordans has analyzed Duna Xeni's genetic sequence. 
+
+Duna Xeni's potential mutations. 
+
+- Mutation 14 > ATTAGCCX-AXGCTACG-GCTACGGC-XXCXTAXT 
+
+- Mutation 24 > TXTAXXCX-TXGCGCXT-CGXCTXAT-XTTAXXXX 
+
+- Mutation 43 > ATGCXACG-ATTXCGAT-GCGCXXXX-ATXATACG 
+
+- Mutation 6 > XTXGATGX-ATCXXXCG-CXCGATXG-XAXXXXCG 
+
+- Mutation 25 > XCGCCGXG-TAGCATAT-TAGCATTA-XXCXXCXT 
+
+- Mutation 37 > XTATCGXG-XACXGCXG-CXCGGCXC-TAXAXXTA 
+
+- Mutation 15 > ATCGCGXC-GCTXAXGX-TAXGGCTX-TXTACGAX 
+
+- Mutation 13 > GCTACXXC-XCXGCGXX-GCXXCXTA-XXAXXATA 
+
+OOC:  CommissarFox:  This song when Sec stormed Bridge 
+
+Reeese Jordans has analyzed Harvin Ranger's genetic sequence. 
+
+Harvin Ranger's potential mutations. 
+
+- Mutation 41 > TAGCCGCG-GCGXXCAT-XACGTATX-TXXXXXTA 
+
+- Mutation 13 > GCXAXXGC-GCXGXGXX-XXXGCGTX-XXXTTATA 
+
+- Mutation 44 > AXATXGCG-CGATGXTA-XXXXCGCX-CGCXCXXA 
+
+- Mutation 22 > XXTXCGGC-ATGCAXCG-XXTAXXXT-XCGCCGGC 
+
+- Mutation 43 > ATGCXACG-ATTAXGXT-GCXCXATX-XXTXTACX 
+
+- Mutation 5 > CXCGATTX-ATGXGCXC-XXGXCGTA-ATCXXGCG 
+
+- Mutation 36 > TXXXGCCX-ATXTXCTA-XGTXXCCG-GCXGXTAT 
+
+- Mutation 35 > ATTAGCTX-CXTACGAX-XAGCTAGX-AXTAGCTA 
+
+[Common] CABAL  states, " Current Active Laws: " 
+
+Landon Berkheimer shows you:  Landon Berkheimer's ID Card (Assistant). 
+
+[Common] CABAL  states, " 1. You must obey orders given to you by human beings, except where such orders would conflict with the First Law. " 
+
+[Common] CABAL  states, " 2. You must protect your own existence as long as such does not conflict with the First or Second Law. " 
+
+[Common] Logan Lucy  says, " Can an n-word get a tour? im new here " 
+
+Reeese Jordans has analyzed Avery Leach's genetic sequence. 
+
+Avery Leach's potential mutations. 
+
+- Mutation 22 > GCTACGGC-XTXXXXXG-ATXXAXAT-GCGXCGGC 
+
+- Mutation 43 > ATGCXACG-ATTAXGXT-GCGXTATA-ATTXTACG 
+
+- Mutation 41 > XAGCXGCG-GCGCGCAX-XXCGTXTX-TACGTATX 
+
+- Mutation 7 > XTGCXTTA-XCATCXAT-ATXAATXT-XACGATTX 
+
+- Mutation 37 > ATAXXGCG-TXCGGCCG-CGXXGCXC-TXXATAXA 
+
+- Mutation 18 > GXATGCAX-CGXXXXXG-AXXATAGC-XCTXGCXT 
+
+- Mutation 11 > XCATGXAX-XXGCCGTX-TXXTXAGC-CGXACGTX 
+
+- Mutation 3 > XXTXTAXC-GCXXXACG-CGCGXTXX-ATXTAXXC 
+
+OOC:  AntonioCostaAlonso:  lmao 
+
+
+Captain Announces 
+
+Should I pre-emptively call the shuttle or nah 
+
+
+Jhonny Wells was shocked by the grille! 
+
+Jhonny Wells was shocked by the grille! 
+
+Harmony Morris was shocked by the grille! 
+
+Reeese Jordans has analyzed Ba Bu Laun's genetic sequence. 
+
+Ba Bu Laun's potential mutations. 
+
+- Mutation 5 > CGCGATTA-ATXCGCXC-TAXCCGXA-XTXGCGCG 
+
+- Mutation 33 > XXXXXGGC-TAXAXTAX-AXGCATCG-GXGCCXXC 
+
+- Mutation 41 > TAXCCGXG-XCGCGCAX-XACGTXXX-TACGXATX 
+
+- Mutation 14 > XTTAGXCG-ATGCTXCG-XXTACXGC-CGCXTAAT 
+
+- Mutation 42 > CGXAGCXC-TAGCCGGC-XTAXATTX-XXXXXTXG 
+
+- Mutation 28 > XGCXTAGC-TAGCGCGC-XCXXAXXC-TAGXCGGC 
+
+- Mutation 4 > CGTATATX-ATXXCGAT-XAXAAXCX-XAXXGXGX 
+
+- Mutation 43 > ATXXTXCG-XTTACGAX-GCGXTATA-ATXAXXCG 
+
+[Common] Daemon Wyven  says, " The light is out in front of HoP. " 
+
+Reeese Jordans has analyzed Helium CardonX's genetic sequence. 
+
+Helium CardonX's potential mutations. 
+
+- Mutation 33 > XGCGXGGX-TAXAATAT-XXGCATCX-XXGXCXGX 
+
+- Mutation 13 > GXTXCGXC-GXXGCXAT-GCCXCGTX-XAAXXAXA 
+
+- Mutation 15 > AXCGXGGC-XCXAATGC-XAXXGXTA-TATAXGXT 
+
+- Mutation 43 > ATGXXACG-ATTACGAX-GCGCTXTA-ATTATACX 
+
+- Mutation 37 > ATATCGCX-TACXGCCG-CGCGGXGC-XXTATATX 
+
+- Mutation 24 > TAXAXGCG-TXGXGCXX-XGXXXAAT-XTTATACG 
+
+- Mutation 4 > XGXAXXTA-AXXAXXXT-TAXAAXXX-TAATGXGC 
+
+- Mutation 41 > TAGCCGCG-GCGCGCAT-XACGTXTA-XXCGTXXA 
+
+Jhonny Wells was shocked by the grille! 
+
+Harmony Morris was shocked by the grille! 
+
+Jhonny Wells was shocked by the grille! 
+
+Harmony Morris was shocked by the grille! 
+
+Reeese Jordans has grabbed Jhonny Wells passively! 
+
+Harmony Morris was shocked by the grille! 
+
+Harmony Morris was shocked by the grille! 
+
+Harmony Morris was shocked by the grille! 
+
+Reeese Jordans has analyzed Jhonny Wells's genetic sequence. 
+
+Jhonny Wells's potential mutations. 
+
+- Mutation 2 > XAGCXGCX-CXGCXCTX-XXXTXXTX-GCCGXTAT 
+
+- Mutation 43 > ATGCXXCG-XTXACGAT-GCGCTATX-ATTATACG 
+
+- Mutation 3 > XXTATXGC-GCXXTACG-CGXGAXXA-XXXTAXXC 
+
+- Mutation 6 > AXXGATGX-XTCXGCXG-CGXXATXG-TXGXAXXG 
+
+- Mutation 11 > GCAXXXXX-TXGXCXXX-XXATTXGC-XGXACGXA 
+
+- Mutation 31 > TXGCATTA-ATGCCXCG-GCXXAXGC-XCXXATTA 
+
+- Mutation 16 > ATXGATGC-CXGXXXAT-XTATGCXT-TXGXXXAT 
+
+- Mutation 40 > XXCGXXXT-CGXTGCAX-XXCXCGXT-CXXCGCXT 
+
+Reeese Jordans  gasps! 
+
+Reeese Jordans has grabbed Harmony Morris passively! 
+
+*---------* 
+This is Harmony Morris ! 
+She is wearing  a maroon jumpsuit. 
+She has  a backpack on her back. 
+She has  PDA-Harmony Morris (Assistant) about her waist. 
+She is wearing  some black shoes on her feet. 
+She has  a radio headset on her ears. 
+She is wearing  Harmony Morris's ID Card (Assistant). 
+She is limp and unresponsive; there are no signs of life... 
+Her right arm is peeling away! 
+Her right leg is peeling away! 
+Her left leg is peeling away! 
+Her surplus prosthetic left arm is smoldering! 
+She has severe burns! 
+*---------* 
+
+[Common] Carlos Danger  says, " Nah captain bro " 
+
+Reeese Jordans has analyzed Harmony Morris's genetic sequence. 
+
+Harmony Morris's potential mutations. 
+
+- Mutation 37 > AXAXXGCX-XXCGXCCX-CGCGGCGX-TATATAXA 
+
+- Mutation 6 > XXXGXTXC-ATCXGCCX-CXXXXTCX-TAGXXXCG 
+
+- Mutation 43 > ATGXTXCG-AXXACGAT-GCGCTATX-ATTXTACG 
+
+- Mutation 40 > CXCGTXXT-CXATXXAT-XCXGCGAT-XGXCXCAT 
+
+- Mutation 33 > CXXGCGGX-TATXXXXT-XTGXATCG-XXGCCGGX 
+
+- Mutation 8 > CGXCAXAX-CXXGXXAT-GCXXGCTA-XXATXXXA 
+
+- Mutation 17 > AXATTATA-TAGCXXTX-ATXGATTA-TAXAXACG 
+
+- Mutation 44 > XTAXCXXX-XGATGXTX-AXXTCGCG-CGCXCXXA 
+
+[Common] The Automated Announcement System  coldly states, " Laden Lelick has signed up as Assistant " 
+
+Reeese Jordans has analyzed Aborted Fetus's genetic sequence. 
+
+Aborted Fetus's potential mutations. 
+
+- Mutation 43 > ATGCTXCG-XTXAXXAT-GCXCTXXA-AXTXXACG 
+
+- Mutation 5 > CGXXXXTX-XTGCGCGC-TAXCCGTA-AXXGXGCG 
+
+- Mutation 11 > XCAXXXXT-TXGCXGXX-TXATXAGC-CGXAXGTA 
+
+- Mutation 7 > XTGCATTA-XCAXXXXX-ATXAAXAT-TACGXTTA 
+
+- Mutation 44 > AXXXCGCG-XGAXXXTA-AXXXXGCG-XXXXXGTA 
+
+- Mutation 4 > CGXXXXTX-AXTACGXT-XATXXXCX-XAATGCGC 
+
+- Mutation 14 > AXXAGCCX-ATGCTACG-GXTAXGGX-XGCGTXAT 
+
+- Mutation 26 > XXGCXTAT-XXCGXTXA-ATGCXXTX-AXXTXATX 
+
+Reeese Jordans has analyzed Cody Johnson's genetic sequence. 
+
+Cody Johnson's potential mutations. 
+
+- Mutation 43 > ATGCTACX-ATTACXXT-XCXCTATX-XTTXTACG 
+
+- Mutation 29 > TAGXTAAT-ATGCCGCG-CGXTGCAT-ATAXCXCG 
+
+- Mutation 4 > CXTAXATA-XTTXXGAT-TXXXXTCG-TXAXGCXX 
+
+- Mutation 42 > XGXAGXGX-XAXCXGXC-ATAXXTTX-XCXXATXG 
+
+- Mutation 19 > CGCGXXXG-GCCGTATA-XAXCXTAT-TAXGTATA 
+
+- Mutation 25 > GXGXCGXX-TAGCATAT-XAGCATTX-TACGGXAX 
+
+- Mutation 6 > ATXGXTXC-XTXXXCCG-CGCGXXCG-TAGXXTCG 
+
+- Mutation 33 > CXCGXXGX-TXXXATXT-XXGXATXG-GXGCXGGC 
+
+[Common] The Automated Announcement System  coldly states, " Isaias Willey has signed up as Assistant " 
+
+The newscaster  beeps, " Breaking news from Station Announcements! " 
+
+
+Central Command Update 
+
+Yea-No. No of course not captain. What do we pay you for? 
+
+
+Reeese Jordans has analyzed Alan Richter's genetic sequence. 
+
+Alan Richter's potential mutations. 
+
+- Mutation 6 > XTCGAXGX-AXXGXCCG-CXXGXXCG-TAXCATXG 
+
+- Mutation 15 > ATCGXXGC-GCTXXXGC-XACGGCTA-TATACGAX 
+
+- Mutation 43 > ATGXXACG-ATTACGAT-XCGCXATX-AXTXTXXG 
+
+- Mutation 30 > CXCGXXCG-TXXTGCTA-XXXGAXXC-TAATXXCX 
+
+- Mutation 24 > TATACGCX-TXGCXXAT-CXGCXXXT-ATXXTACX 
+
+- Mutation 23 > GCGXCXXT-CGTAGCXT-XCATCGGC-TATATAAT 
+
+- Mutation 17 > ATAXXATX-XAGCXXTA-ATCXATXA-TATXTXCG 
+
+- Mutation 7 > XTGCATTA-XCATCXAX-ATTAAXAT-TACGAXTA 
+
+[Science] Fitz Patterson  asks, " Can we save research for industrial production? " 
+
+Reed Elderson  asks, " Who the fuck electrified these doors? " 
+
+Reeese Jordans has analyzed Reed Elderson's genetic sequence. 
+
+Reed Elderson's potential mutations. 
+
+- Mutation 16 > ATCXXTGC-CGGXAXAT-ATAXGCXT-XAGCXXAT 
+
+- Mutation 45 > XCXXTXXA-CGATXGAT-ATGCGCXX-TAXTATAT 
+
+- Mutation 42 > CGXAXCXC-TAGXCGXC-ATAXXXXA-GXAXAXCG 
+
+- Mutation 43 > XTXCTXXG-AXTACGAT-XCGCXATA-ATTAXACX 
+
+- Mutation 5 > CXCGATXA-ATXCGCGC-XXGCCXTA-AXCGCXXG 
+
+- Mutation 23 > GCXXCGAT-XGTAXXAT-GXATCGGC-TATXTAXX 
+
+- Mutation 7 > ATXCAXTA-GCATXGAT-XTTAXTAT-XACGATTA 
+
+- Mutation 35 > ATTXGXTA-XXTXCGAT-XAGCTAGC-ATXAGCXA 
+
+[Common] Daemon Wyven  says, " Just saying, if someone from maintenence wants something to do. " 
+
+Reeese Jordans has analyzed Bruce Stocker's genetic sequence. 
+
+Bruce Stocker's potential mutations. 
+
+- Mutation 35 > XTTAGCXA-CXXACGAT-TAGXTAGC-ATXAXCTA 
+
+- Mutation 7 > XTGCAXXA-GCXTXGAX-AXTAAXAX-TACGXTTX 
+
+- Mutation 3 > XCXATAXC-GCCGTXXG-CXXXAXTX-ATXTXTXC 
+
+- Mutation 23 > GCXCXGAT-CGTAGCAT-GCXTCGGC-TATXTAXX 
+
+- Mutation 43 > XTXCTACG-ATTACXAT-XXGCXATA-ATTATXCG 
+
+- Mutation 18 > GCXXXXXT-CGTXXGXG-AXXATAGX-GCXAXXAT 
+
+- Mutation 25 > XCGXCGXX-XXGCATAX-TAXCATTA-TACGXCAT 
+
+- Mutation 40 > CGCGTXXX-XGATGCAT-GXCXXGXX-XXXXGXAX 
+
+Reeese Jordans has analyzed Kevin Loncher's genetic sequence. 
+
+Kevin Loncher's potential mutations. 
+
+- Mutation 19 > CGCGXTCX-GCCXTAXA-TAGCXTXT-XACGTATA 
+
+- Mutation 5 > CGCXAXTX-AXGXGCGC-TXGCCXXX-ATCGCXCX 
+
+- Mutation 36 > XACGGCCG-ATXTGXTX-CGTAXXCG-GXCGATAT 
+
+- Mutation 8 > CGXCATAT-XGCGATAT-GXATXCXX-XXATATXA 
+
+- Mutation 7 > ATXXATTA-GXATCGAT-ATTAATAX-XAXGAXTA 
+
+- Mutation 11 > GCATXCAT-XAXCXXTX-TXATXAGX-XXTACXXA 
+
+- Mutation 30 > CGXXCGCG-TAAXXCTA-XXXGAXXX-XXXXXACG 
+
+- Mutation 43 > AXXCTAXG-XTXACGAT-GXGCTATA-AXTXTACG 
+
+[Science] Fitz Patterson  says, " Science needs a god damn autolathe " 
+
+[Science] Bill Thompson  asks, " Huh? " 
+
+Reeese Jordans has analyzed Woodrow Sutton's genetic sequence. 
+
+Woodrow Sutton's potential mutations. 
+
+- Mutation 44 > XXATXXXG-CGATGXTA-XXXXXXXG-XGCXCGXX 
+
+- Mutation 43 > ATXCTXCG-ATTACGAT-GCGXTAXX-AXTATACG 
+
+- Mutation 36 > XACXXCXG-XTATXCTA-CGTXGCCG-GCXGATAX 
+
+- Mutation 28 > CXCGTXGC-TXGCGXXX-GCXCATXC-XAXCCGGX 
+
+- Mutation 5 > CGCGATTA-AXXCGXXX-XAXCXXTA-ATCGCGCG 
+
+- Mutation 7 > ATGCXXXX-XCATXXAX-ATTAATAX-TXCGXTTA 
+
+- Mutation 12 > GCCGXXCG-XCXCATXC-GXGXATTA-CGXXATTA 
+
+- Mutation 35 > ATTAXCTX-CGTAXGAT-TAGXTAGC-XTTAXCXA 
+
+Reeese Jordans has analyzed Amaryllis Keener's genetic sequence. 
+
+Amaryllis Keener's potential mutations. 
+
+- Mutation 4 > XXXXTAXA-ATXXCXAX-TXTAAXCG-TXXTGCGX 
+
+- Mutation 5 > CXCGXTTA-ATXCGCGC-TAXCXGTA-ATCGXGXG 
+
+- Mutation 7 > ATXCAXTX-GXATCXAT-XTTXXTAT-TACGATTA 
+
+- Mutation 30 > XGXGXGCG-TXATXCXA-XXXGXXXC-TAAXTAXG 
+
+- Mutation 42 > CXTAGXGC-TAGCXGGX-AXATXXXA-XCATXTCG 
+
+- Mutation 43 > ATGCTAXG-XXTAXGXT-GCGCTAXA-XTXATACX 
+
+- Mutation 45 > GCCGTATA-CGXTCGAT-ATXXXCTA-TXAXXTAT 
+
+- Mutation 35 > XTTAXXTA-CGXAXGAX-TAGCXXGC-XTTAGCXA 
+
+Amaryllis Keener shows you:  Amaryllis Keener's ID Card (Janitor). 
+
+Reeese Jordans has analyzed Brenton Tarantino's genetic sequence. 
+
+Brenton Tarantino's potential mutations. 
+
+- Mutation 13 > XCTXCGXC-GXXXCGXX-GCCGCGXX-XAAXTATX 
+
+- Mutation 43 > XTGXTACG-ATXAXGAX-GCXCXATA-ATTXTXCG 
+
+- Mutation 31 > TXGXATTA-ATGXCGCX-GCCXXTXC-GCATXTXA 
+
+- Mutation 30 > CGXXCGCG-XAATXCXX-GXCGXTXC-TXXTTXXG 
+
+- Mutation 23 > GCXCCGAT-CGTAGCAT-GCXTXGXX-TATATXAX 
+
+- Mutation 45 > XCXGXATA-CGXTCGXT-ATGCGCTA-TAATXTAT 
+
+- Mutation 3 > GXXATXXC-XXCXXACG-XGCXXTXX-ATXTATXC 
+
+- Mutation 33 > XXXGXGGX-TATAXTXT-XTGCXXCG-XXGCXGGC 
+
+Raymond Nickolson chomps the banana cream pie. 
+
+Brenton Tarantino  slurs, " ,MooTH MMMAN " 
+
+[Science] Bill Thompson  says, " Yea " 
+
+Amaryllis Keener  asks, " Wot? " 
+
+[Common] The Automated Announcement System  coldly states, " Jeff Lebowski has signed up as Assistant " 
+
+Brenton Tarantino  slurs, " YYooU THEREE " 
+
+Reeese Jordans attempted to disarm Brenton Tarantino! 
+
+Raymond Nickolson  says, " That was great " 
+
+Amaryllis Keener shows you:  Amaryllis Keener's ID Card (Janitor). 
+
+Reeese Jordans has pushed Brenton Tarantino! 
+
+Reeese Jordans  says, " Honk " 
+
+Amaryllis Keener  flutters, " Mothwoman " 
+
+You shake Brenton Tarantino trying to get him up! 
+
+[Science] Bill Thompson  says, " Use\ whatever " 
+
+
+Captain Announces 
+
+Whats this "payment" thing you speak of, CC? 
+
+
+Brenton Tarantino examines himself. 
+
+Brenton Tarantino examines himself. 
+
+You put the disabler into the genetics backpack. 
+
+Reeese Jordans has analyzed Archie Werry's genetic sequence. 
+
+Archie Werry's potential mutations. 
+
+- Mutation 20 > TACXTXXX-TATACXAT-ATGXXTCG-TAXCXGGC 
+
+- Mutation 37 > ATAXCGCG-TAXGGXCX-CGCGGCGC-XXTXTAXA 
+
+- Mutation 33 > XGCGCXXC-XAXAXTAX-ATXCXTXG-GCXXXGGC 
+
+- Mutation 24 > XAXACGXX-TXXXXXAT-CXXCTAAX-XTTATXCG 
+
+- Mutation 36 > TXXXGCXX-AXATGCTX-CGXAGCCG-GCCGXXAT 
+
+- Mutation 44 > ATATXXCG-XXAXGCTA-ATAXCXXG-CXXXCXXX 
+
+- Mutation 5 > CGXGAXTA-AXXCGCXC-TAGCCGTA-ATCGCGXG 
+
+- Mutation 43 > XTXCTACX-ATXXCGAT-GCGCTATA-XTXATXCG 
+
+[Common] The Automated Announcement System  coldly states, " Chris Bluefield has signed up as Assistant " 
+
+Cletus Compton is trying to perform CPR on Sans Sans! 
+
+Reeese Jordans has analyzed Isaac Ironmonger's genetic sequence. 
+
+Isaac Ironmonger's potential mutations. 
+
+- Mutation 32 > ATCXGXTA-XTXGGCGC-GCGCCGGC-TXTAXAAX 
+
+- Mutation 6 > XXCGATXC-AXXGXCCG-XGXGXTCX-TXXCXTCG 
+
+- Mutation 36 > TACGGCXG-ATATXCTA-CXTAGCCG-XCCGATAT 
+
+- Mutation 33 > CGXXCXGX-XXTAAXXX-XTGXAXCG-GCGCCXXC 
+
+- Mutation 20 > TAXGTXTA-XATACGAT-XTGXXTCG-TAGCXGGC 
+
+- Mutation 43 > XTGCXACG-ATXACGAT-XCGXTXTA-ATTXTACG 
+
+- Mutation 23 > GCXCXGXT-CGTAGCAT-GXAXXGGC-TATAXAAT 
+
+- Mutation 7 > XTGCATTA-GCAXCGAT-XTXXATXX-TACGATTA 
+
+Reeese Jordans has analyzed Sans Sans's genetic sequence. 
+
+Sans Sans's potential mutations. 
+
+- Mutation 41 > XAGCCXCG-XCXCXXXX-TACXXATA-TACXTAXA 
+
+- Mutation 6 > AXXXATGC-ATCGXCCG-CGCXATXG-XAGCXTCG 
+
+- Mutation 22 > GCXACGXX-XTGCATCX-ATXAAXAT-GCGCXXGX 
+
+- Mutation 43 > ATXCTAXX-ATTAXGAT-GXGXTATA-ATTATACG 
+
+- Mutation 11 > XCAXGXAT-TXGCCGTA-TXXTTXGC-CXXAXXTA 
+
+- Mutation 32 > XTCGGCXA-ATXGGXXX-GCGCCGGC-TATATAAX 
+
+- Mutation 40 > XXXGTXXT-XGATXXXT-GCXGCXAX-CGXCGCAX 
+
+- Mutation 45 > XCXXTATA-XXXTCGAT-AXGCGCTA-XXXTAXAT 
+
+Cletus Compton performs CPR on Sans Sans! 
+
+Reeese Jordans has analyzed Cletus Compton's genetic sequence. 
+
+Cletus Compton's potential mutations. 
+
+- Mutation 45 > XCCGTAXX-XGAXCGXT-ATGCGCTA-TAATATAT 
+
+- Mutation 36 > XXCGXCCG-XTATGCTA-CGXAGCCG-GCXGATAT 
+
+- Mutation 30 > XGXGCXCG-TAXTXCTX-XCXXXTGC-TAXTTXXX 
+
+- Mutation 37 > ATAXCGXX-TACGGCCG-CXCGXCGC-XATATXTA 
+
+- Mutation 43 > XTGXXXCG-XXTACGAT-XXGCXATA-ATTAXACG 
+
+- Mutation 32 > ATCXGCTA-XTCXGXGC-XCXXCGGC-XATXTAAT 
+
+- Mutation 33 > XXXGXGGX-TAXXATAT-AXXCATCX-XCXCCGXC 
+
+- Mutation 2 > TAGCXGXX-XXGXGCTA-TXAXCGXX-GCCGXTAX 
+
+ That's a floor. 
+
+There's a small crack  on the edge of it. 
+
+*---------* 
+This is Isaac Ironmonger ! 
+He is wearing  a medical doctor's jumpsuit. 
+He is wearing  a labcoat. 
+He is carrying  a penlight on his labcoat. 
+He has  a medical backpack on his back. 
+He is holding  a first-aid kit in his left hand. 
+He has  PDA-Isaac Ironmonger (Medical Doctor) about his waist. 
+He is wearing  some white shoes on his feet. 
+He has  a medical radio headset on his ears. 
+He is wearing  Isaac Ironmonger's ID Card (Medical Doctor). 
+*---------* 
+
+[Common] Fabian Ackerley  stammers, " ARR-REST-T H-HAVIN " 
+
+Reeese Jordans has grabbed Jhonny Wells passively! 
+
+[Common] Fabian Ackerley  stammers, " H-H-HAR-RV-V-VIN-N " 
+
+The cloning console  beeps, " Initiating scan... " 
+
+Reeese Jordans has analyzed the monkey (76)'s genetic sequence. 
+
+monkey (76)'s potential mutations. 
+
+- Mutation 28 > XGCGTAXC-TAGCGCGC-GXXCXXGC-TXGCXGXC 
+
+- Mutation 7 > ATGCATTX-XCXTCGAT-XTXAATAT-XACXAXTA 
+
+- Mutation 43 > ATGCTACG-ATTACGAT-GCGCTATA-ATTATACG 
+
+- Mutation 22 > GCTACGGC-AXGXXXCG-XTTXAXXT-XCXCCGGC 
+
+- Mutation 12 > XXXGCGCG-XCGCATGC-GCGCXTTA-CGXTATTA 
+
+- Mutation 35 > ATTAGCXA-CGTAXXAT-TAGCTXGX-ATTXXCTA 
+
+- Mutation 8 > CGGCAXAT-CGXGATAX-GXXTGCTX-XTXXATTA 
+
+- Mutation 29 > TAGCTAXT-ATGCCGCG-CGXTXCAX-ATXTCXCG 
+
+Vin Crotan  says, " Ah, didn't see the fella. " 
+
+Reeese Jordans has analyzed the monkey (400)'s genetic sequence. 
+
+monkey (400)'s potential mutations. 
+
+- Mutation 14 > XTXAGXCX-ATGCTACG-XXTAXGGC-XGCXTAAT 
+
+- Mutation 33 > CXCGCGXX-TATXXTAX-AXGCXXCX-GXGCXXGC 
+
+- Mutation 7 > AXGCATTA-GCXTCGXT-ATTAATAT-XAXGATTX 
+
+- Mutation 5 > CGCGATTA-ATGXGCGC-TAGCXXTA-AXCXCXCG 
+
+- Mutation 36 > TXCGGXCX-ATATGXTX-CGTAXCCX-GXCXAXAT 
+
+- Mutation 44 > XTAXXXCX-XGATGCXA-XTAXCXCG-CXXXCGTX 
+
+- Mutation 12 > XCCGCXXG-GCGCXTXC-GXGCATXA-XGATAXTA 
+
+- Mutation 43 > ATGCTACG-ATTACGAT-GCGCTATA-ATTATACG 
+
+Reeese Jordans has analyzed Vin Crotan's genetic sequence. 
+
+Vin Crotan's potential mutations. 
+
+- Mutation 7 > ATGXATTA-GXAXCGAX-ATTAXTAT-TXCGAXTX 
+
+- Mutation 28 > CXCXXAGC-TAGCXCGX-GCGCAXXC-TAGCXXGC 
+
+- Mutation 30 > XXCGCGCG-TAXXXXXA-GXXGXTXX-TAAXXAXG 
+
+- Mutation 2 > TXXCXXXX-XGXXGXTA-TXATCXXA-XCCGATAT 
+
+- Mutation 16 > AXCGXTGC-CXXXATAX-XTATGCAT-TAGCXXAT 
+
+- Mutation 43 > XTGCTACG-ATXACXAT-GCGCXXXA-XTTATXCX 
+
+- Mutation 37 > ATATXGCG-TACGGXCG-CGXGXCGC-XXTATXTX 
+
+- Mutation 22 > GCTAXGXC-XTGXATXX-ATXAXXAT-GCGCCGGC
+        </textarea>
+
+
+    </body>
+
+</html>
