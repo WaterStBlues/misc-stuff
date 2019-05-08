@@ -213,7 +213,7 @@
                 return difficultyCounter;
             }
             
-            SequenceArray = []
+            SequenceArray = [];
             class Sequence{
                 constructor(mutationID, initialTopRow, initialBottomRow){
                     
@@ -228,6 +228,23 @@
                     
                     SequenceArray.push(this);
                 }
+                
+                getMutationID(){
+                    return this.mutationID;
+                }
+                
+                getTopRow(){
+                    return this.topRow;
+                }
+                
+                getBottomRow(){
+                    return this.bottomRow;
+                }
+                
+                getDifficulty(){
+                    return this.difficulty;
+                }
+                
             }
             
             
@@ -243,18 +260,41 @@
             // version to be displayed.
             /* ******************************************************* */
             
+            MutationArray = [];
+            
             class Mutation{
-                constructor(mutationID, topRow, bottomRow){
+                constructor(mutationID, topRow, bottomRow, difficulty){
                     console.log("mutation " + this + " created.");
                     this.mutationID = mutationID;
                     this.topRow = topRow;
                     this.bottomRow = bottomRow;
-                    this.difficultyList = [] // array of difficulty values
+                    this.difficultyList = [difficulty] // array of difficulty values
+                    
+                    MutationArray.push(this);
                 }
                 
                 addSequence(newSequence){
-                    topRow = compareSameList(topRow, newSequence.topRow);
-                    bottomRow = compareSameList(bottomRow, newSequence.bottomRow);
+                    this.topRow = compareSameList(this.topRow, newSequence.getTopRow);
+                    this.bottomRow = compareSameList(this.bottomRow, newSequence.getBottomRow);
+                    
+                    this.topRow = compareOppositeList(this.topRow, newSequence.getBottomRow);
+                    this.bottomRow = compareOppositeList(this.bottomRow, newSequence.getTopRow);
+                    
+                    this.difficultyList.append(newSequence.getDifficulty);
+                    this.difficultyList.sort();
+                }
+                
+                getMutationID(){
+                    return this.mutationID;
+                }
+                getTopRow(){
+                    return this.topRow;
+                }
+                getBottomRow(){
+                    return this.bottomRow;
+                }
+                getDifficultyList(){
+                    return this.difficultyList
                 }
             }
             
@@ -322,16 +362,36 @@
 
                 }
                 
-                for (var i=0; i<parsedLineList.length; i++){
+                for (let i=0; i<parsedLineList.length; i++){
                     this["sequence"+i] = new Sequence(parsedLineList[i][0], parsedLineList[i][1], parsedLineList[i][2]);
                     console.log(this["sequence"+i])
+                }
+                
+                for (let i=0; i<SequenceArray.length; i++){
+                    let currentSequence = SequenceArray[i]
+                    if (MutationArray.length == 0){
+                        this["Mutation0"] = new Mutation(currentSequence.getMutationID, currentSequence.getTopRow, currentSequence.getBottomRow, currentSequence.getDifficulty)
+                    }
+                    else{
+                        for (j=0; j<MutationArray.length; j++){
+                            var mutationExists = false;
+                            let currentMutation = MutationArray[j];
+                            if (currentMutation.getMutationID == currentSequence.getMutationID){
+                                currentMutation.addSequence(currentSequence);
+                                mutationExists = true;
+                                break;
+                            }
+                        }
+                        if (mutationExists == false){
+                            this["Mutation"+j] = new Mutation(currentSequence.getMutationID, currentSequence.getTopRow, currentSequence.getBottomRow, currentSequence.getDifficulty)
+                        }
+                    }
                 }
                 
     //            this.["seq" + SequenceNumber] = Sequence(mutID, topList, bottomList);
       //                  SequenceNumber++;
             }
             
-            //TODO:     dynamic variable name changer for Sequence and Mutation classes
             //          plug Sequence into initial script
             //          modify DOM functions to match new classes
         </script>
@@ -498,8 +558,6 @@ OOC:  Clownlover70:  wrong, you are FACTUALLY GAYYYY
 [Common] The Automated Announcement System  coldly states, " Micheal Mikey Mcclyndon has signed up as Assistant " 
 
 Sans Sans  asks, " Who wants chemist id? " 
-
-OOC:  Mklzer0:  fucking niggers 
 
 [Common] The Automated Announcement System  coldly states, " Clayton Mcfall has signed up as Assistant " 
 
