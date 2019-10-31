@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<head>
+  
+</head>
+<body>
+<h1>Random name generator</h1>
+<p>Refresh to regenerate names</p>
+<br />
+<br />
+<div id="mainb">
+</div>
+ 
+ 
+ <script>
+ var mainb = document.getElementById("mainb");
+ 
+ function getRandomInt(max) { //gets random int from 0 to param max
+  return Math.floor(Math.random() * Math.floor(max));
+ }
+ 
+ 
+  var firstNamePrefix = ["Ty","Bob","Ad","Tom","Jeb","Mark","Rick","Sam","Abe","Hom","Jo","Al","Mo","Bet"];
+	var firstNameSuffix = ["ler","by", "my", "lee", "olf", "ungo", "oni", "oli", "oto","er","el","bert","esby","ella","any"];
+	var firstNameExtension = ["-Li", "-Jo", "-Loo"];
+ 
+	var lastNamePreExtension = ["Mc", "bin ", "al-",];
+	var lastNamePrefix = ["Log","For","But","Sor","Ram","Zucker","Rick","Abrah","Spa"];
+	var lastNameSuffix = ["man","ler","rel","say","berg","gett","es","tini","guini"];
+ 
+ //alert(getRandomInt(9));
+
+ function genName() {
+   	let firstName = "";
+   	firstName += firstNamePrefix[getRandomInt(firstNamePrefix.length)];
+   	firstName += firstNameSuffix[getRandomInt(firstNameSuffix.length)];
+   	
+	
+	if (getRandomInt(4)==0){
+  firstName += firstNameExtension[getRandomInt(firstNameExtension.length)];
+	}
+	
+	firstName += " ";
+	
+	if (getRandomInt(4)==0){
+  firstName += lastNamePreExtension[getRandomInt(lastNamePreExtension.length)];
+	}
+	
+	firstName += lastNamePrefix[getRandomInt(lastNamePrefix.length)];
+   	firstName += lastNameSuffix[getRandomInt(lastNameSuffix.length)];
+	
+   	return firstName;
+	}
+	for (i=0; i<6; i++){
+	let fname = genName();
+	var newP = document.createElement("p");
+	newP.innerText = fname;
+	mainb.appendChild(newP);
+ }
+ </script>
+
+</body>
+</html>
